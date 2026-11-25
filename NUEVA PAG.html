@@ -336,7 +336,10 @@ function construir(){
 
   const scene = new T3.Scene();
   const camera = new T3.PerspectiveCamera(32, 1, 0.5, 400);
-  camera.position.set(27, 17, 33);
+  // Mano derecha: el modelo se construye como mano izquierda y se refleja en z.
+  // Para volver a la izquierda, pon LADO = 1.
+  const LADO = -1;
+  camera.position.set(27, 17, 33*LADO);
   const controls = new T3.OrbitControls(camera, renderer.domElement);
   controls.target.set(-7, -0.5, 0);
   controls.enableDamping = true; controls.dampingFactor = 0.08;
@@ -346,12 +349,12 @@ function construir(){
   // luz de estudio: cielo suave, luz principal con sombra, relleno y contraluz
   scene.add(new T3.HemisphereLight(0xfff7e6, 0x6f1f3b, 0.68));
   const clave = new T3.DirectionalLight(0xfff6ea, 0.95);
-  clave.position.set(16, 30, 20); clave.castShadow = true;
+  clave.position.set(16, 30, 20*LADO); clave.castShadow = true;
   clave.shadow.mapSize.set(2048, 2048); clave.shadow.bias = -0.0004; clave.shadow.normalBias = 0.02;
   Object.assign(clave.shadow.camera, {left:-34, right:34, top:26, bottom:-26, near:1, far:110});
   scene.add(clave);
-  const relleno = new T3.DirectionalLight(0xe8f0ff, 0.32); relleno.position.set(-24, 12, 18); scene.add(relleno);
-  const contra = new T3.DirectionalLight(0xffc7da, 0.5); contra.position.set(-10, 16, -30); scene.add(contra);
+  const relleno = new T3.DirectionalLight(0xe8f0ff, 0.32); relleno.position.set(-24, 12, 18*LADO); scene.add(relleno);
+  const contra = new T3.DirectionalLight(0xffc7da, 0.5); contra.position.set(-10, 16, -30*LADO); scene.add(contra);
 
   const M = (c, r, mt=0) => new T3.MeshStandardMaterial({color:c, roughness:r, metalness:mt});
   const mat = {guante:M(0xf5f3ef, 0.97), pla:M(0xf3c414, 0.38), naranja:M(0xff7d26, 0.36),
@@ -407,7 +410,7 @@ function construir(){
   const piso = new T3.Mesh(new T3.CircleGeometry(90, 64), new T3.MeshStandardMaterial({color:0xdde2e6, roughness:1}));
   piso.rotation.x = -Math.PI/2; piso.position.y = -8.6; piso.receiveShadow = true; scene.add(piso);
 
-  const mano = new T3.Group(); scene.add(mano);
+  const mano = new T3.Group(); mano.scale.z = LADO; scene.add(mano);
 
   // ---------- antebrazo, muñeca y palma ----------
   const ant = cap(2.55, 2.75, 21, mat.madera); ant.position.set(-33.5, -0.35, 0); ant.scale.set(1, 0.86, 1.2); mano.add(ant);
@@ -579,7 +582,8 @@ function construir(){
       for (const n of ['indice', 'anular']){
         const d = dedos[n], h = hilos[n];
         const sal = new T3.Vector3(-3.0, 6.88, 1.15 + (n === 'indice' ? 0.12 : -0.12));
-        const g1 = d.guias[0].getWorldPosition(tmpA).clone(), g2 = d.guias[1].getWorldPosition(tmpB).clone();
+        // los hilos viven dentro de "mano": se pasan las guías a sus coordenadas
+        const g1 = mano.worldToLocal(d.guias[0].getWorldPosition(tmpA).clone()), g2 = mano.worldToLocal(d.guias[1].getWorldPosition(tmpB).clone());
         colocar(h[0], sal, reenvios[n]); colocar(h[1], reenvios[n], g1); colocar(h[2], g1, g2);
       }
       controls.update();
