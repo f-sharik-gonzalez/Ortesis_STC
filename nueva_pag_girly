@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Simulación 3D de una órtesis de extensión de dedos con control por campo de fuerza para rehabilitación de pacientes con STC leves a moderados.">
+<style>*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Simulación de la Órtesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: banco de pruebas — visor 3D grande con panel de mando al lado; debajo, las dos gráficas en vivo */
+/* Paleta: vainilla de fondo, rosados oscuros para el texto y la escena, verde musgo para el ángulo y los controles */
+:root{
+  color-scheme:light;
+  --bg:#FFF7E6;            /* vainilla: fondo de la interfaz */
+  --surface:#FFF0F5;       /* ivory bloom: tarjetas y panel */
+  --scene:#3A071F;         /* rose ink: fondo de la simulación */
+  --scene-ink:#FFF0F5; --scene-ink-2:#E2A6BA;
+  --ink:#3A071F;           /* texto principal */
+  --ink-2:#6F1F3B;         /* texto pequeño */
+  --rule:#EBC9D3; --grid:#F4DDE4;
+  --moss:#8D8D51;          /* botones, sliders y ángulo */
+  --jazz:#B60062;          /* fuerza y alertas */
+  --series-ang:var(--moss); --series-t:var(--jazz); --ref:#8E6B78; --tunnel:#E8E8D0;
+  --good:var(--moss); --warn:#E2A6BA; --critical:#620607;
+  --btn:var(--moss); --btn-ink:#3A071F; --pla:#e9b800;
+  --title:"Cinzel","Times New Roman",Times,serif;            /* título principal */
+  --display:"Playfair Display","Times New Roman",Times,serif; /* títulos de sección */
+  --serif:"Times New Roman",Times,serif;                     /* textos de lectura */
+  --body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --mono:"Times New Roman",Times,serif;                      /* datos, medidas y etiquetas pequeñas */
+}
+
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1240px;margin:0 auto;padding-block:24px 40px;display:grid;gap:18px}
+h1,h2{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
+h1{font-family:var(--title);font-size:clamp(1.8rem,4vw,2.6rem);font-weight:700;letter-spacing:.04em}
+h2{font-size:1.2rem;font-weight:600;letter-spacing:.01em}
+p{margin:0}
+.eyebrow{font:500 12.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+header{display:grid;gap:8px}
+header .lead{max-width:72ch;color:var(--ink-2);font-family:var(--serif);font-size:1.08rem;line-height:1.5}
+header .lead b{color:var(--ink);font-weight:600}
+.pla{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--pla);vertical-align:0}
+
+.top{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:stretch}
+@media (max-width:900px){.top{grid-template-columns:minmax(0,1fr)}}
+.viewer{position:relative;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--scene);min-height:440px}
+.viewer canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+@media (max-width:600px){.viewer{min-height:320px}}
+.hint{position:absolute;left:12px;bottom:10px;font:500 13px var(--mono);color:var(--scene-ink-2);background:color-mix(in srgb,var(--scene) 80%,transparent);padding:3px 7px;border-radius:5px}
+.fallback{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--scene-ink)}
+.fallback[hidden]{display:none}
+
+.panel{border:1px solid var(--rule);border-radius:10px;background:var(--surface);padding:14px 16px;display:grid;gap:14px;align-content:start;min-width:0}
+.state{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;border:1px solid var(--rule);font:600 13px var(--body);letter-spacing:.02em}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--ref)}
+.chip[data-k="activo"] i{background:var(--good)}
+.chip[data-k="pausa"] i{background:var(--warn)}
+.chip[data-k="falla"]{border-color:var(--critical);color:var(--critical)}
+.chip[data-k="falla"] i{background:var(--critical)}
+.cyc{font:500 14px var(--mono);color:var(--ink-2)}
+.motivo{font-size:.9rem;color:var(--critical)}
+.read{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+.read div{display:grid;gap:1px;border-top:1px solid var(--rule);padding-top:6px}
+.read span{font:500 11.5px var(--mono);letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;color:var(--ink-2)}
+.read b{font:600 1.3rem var(--mono);font-variant-numeric:tabular-nums}
+.read b small{font-size:.8rem;color:var(--ink-2);font-weight:400}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button,select{font:600 15px var(--serif);border-radius:7px;cursor:pointer}
+button{padding:7px 12px;border:1px solid var(--btn);background:var(--btn);color:var(--btn-ink)}
+button.sec{background:transparent;color:var(--ink);border-color:var(--rule)}
+button.danger{background:transparent;color:var(--jazz);border-color:var(--jazz)}
+button:not(:disabled):hover{filter:brightness(1.06)}
+button.sec:not(:disabled):hover{background:var(--grid)}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--series-ang);outline-offset:2px}
+select{padding:6px 8px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+.sliders{display:grid;gap:10px}
+.sl{display:grid;gap:2px}
+.sl label{display:flex;justify-content:space-between;gap:8px;font-size:.9rem}
+.sl label output{font:500 14px var(--mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.sl input{width:100%;accent-color:var(--series-ang)}
+.sl small{color:var(--ink-2);font-family:var(--serif);font-style:italic;font-size:.9rem;line-height:1.3}
+.group-t{font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:900px){.charts{grid-template-columns:minmax(0,1fr)}}
+.chart{border:1px solid var(--rule);border-radius:10px;background:var(--surface);padding:12px 14px 10px;display:grid;gap:8px;min-width:0}
+.chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--ink-2)}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.legend i.dash{border-top-style:dashed}
+.legend i.box{height:9px;border:0;border-radius:2px;background:var(--tunnel)}
+.cv{position:relative;height:230px}
+.cv canvas{position:absolute;inset:0;width:100%;height:100%}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;font:500 13.5px var(--mono);color:var(--ink);box-shadow:0 4px 14px rgba(58,7,31,.14);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.note{font-family:var(--serif);font-size:.98rem;color:var(--ink-2);max-width:90ch}
+.note code{font-family:var(--mono);font-style:italic}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Tesis · órtesis de extensión de dedos · mano izquierda</span>
+    <h1>Simulador de la órtesis</h1>
+    <p class="lead">Modelo 3D del prototipo (<span class="pla"></span> placa y anillos en PLA, servo en el dorso, hilos a índice y anular) movido por el código cargado al prototipo real <b>ortesis_ffc.ino</b>: extensión de la MCF hasta <b>45°</b>, sostener, flexión hasta <b>80°</b>, con control por campo de fuerza.</p>
+  </header>
+
+  <div class="top">
+    <div class="viewer" id="viewer">
+      <div class="fallback" id="fallback" hidden>No se pudo cargar el visor 3D en este navegador. La simulación y las gráficas siguen funcionando.</div>
+      <span class="hint">Arrastra para girar · rueda para acercar</span>
+    </div>
+
+    <aside class="panel" aria-label="Panel de mando">
+      <div class="state">
+        <span class="chip" id="chip" data-k="activo"><i></i><span id="fase">Tensando el hilo</span></span>
+        <span class="cyc" id="ciclo">ciclo 1</span>
+      </div>
+      <p class="motivo" id="motivo" hidden></p>
+
+      <div class="read">
+        <div><span>MCF medida</span><b id="r-ang">80.0<small> °</small></b></div>
+        <div><span>Referencia</span><b id="r-ref">80.0<small> °</small></b></div>
+        <div><span>Tensión del hilo</span><b id="r-t">0.00<small> N</small></b></div>
+        <div><span>Fuerza pedida</span><b id="r-f">0.00<small> N</small></b></div>
+        <div><span>Servo</span><b id="r-s">0<small> °</small></b></div>
+        <div><span>Hilo recogido</span><b id="r-h">0<small> mm</small></b></div>
+        <div><span>Último ciclo: logró</span><b id="r-ext">—</b></div>
+        <div><span>Último ciclo: T máx</span><b id="r-tmax">—</b></div>
+      </div>
+
+      <div class="btns">
+        <button id="btn-play" type="button">Pausar</button>
+        <button id="btn-soltar" class="sec" type="button">Soltar hilo</button>
+        <button id="btn-espasmo" class="danger" type="button">Simular espasmo</button>
+        <button id="btn-reiniciar" class="sec" type="button" disabled>Reiniciar</button>
+        <select id="sel-vel" aria-label="Velocidad de la simulación">
+          <option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
+        </select>
+      </div>
+
+      <div class="sliders">
+        <span class="group-t">Dedo</span>
+        <div class="sl">
+          <label for="sl-rig">Rigidez del dedo <output id="o-rig">0.10 N/°</output></label>
+          <input id="sl-rig" type="range" min="0.04" max="0.25" step="0.01" value="0.10">
+        </div>
+        <div class="sl">
+          <label for="sl-part">Participación del paciente <output id="o-part">0 %</output></label>
+          <input id="sl-part" type="range" min="0" max="100" step="5" value="0">
+          <small>Con más participación el dedo sigue solo la referencia y el campo casi no tira.</small>
+        </div>
+        <span class="group-t">Campo de fuerza</span>
+        <div class="sl">
+          <label for="sl-k">K_CAMPO <output id="o-k">0.80 N/°</output></label>
+          <input id="sl-k" type="range" min="0.2" max="2" step="0.1" value="0.8">
+        </div>
+        <div class="sl">
+          <label for="sl-banda">BANDA del túnel <output id="o-banda">± 5 °</output></label>
+          <input id="sl-banda" type="range" min="1" max="10" step="1" value="5">
+        </div>
+        <div class="sl">
+          <label for="sl-fmax">F_MAX <output id="o-fmax">6.0 N</output></label>
+          <input id="sl-fmax" type="range" min="2" max="9" step="0.5" value="6">
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="charts">
+    <section class="chart" aria-labelledby="h-ang">
+      <div class="chart-head">
+        <h2 id="h-ang">Ángulo de la MCF</h2>
+        <div class="legend">
+          <span><i style="border-color:var(--series-ang)"></i>medido (MPU)</span>
+          <span><i class="dash" style="border-color:var(--ref)"></i>referencia</span>
+          <span><i class="box"></i>túnel libre</span>
+        </div>
+      </div>
+      <div class="cv" id="cv-ang"><canvas aria-label="Gráfica del ángulo de la MCF medido y la referencia en los últimos 30 segundos"></canvas></div>
+    </section>
+    <section class="chart" aria-labelledby="h-f">
+      <div class="chart-head">
+        <h2 id="h-f">Fuerza en el hilo</h2>
+        <div class="legend">
+          <span><i style="border-color:var(--series-t)"></i>tensión medida (celda)</span>
+          <span><i class="dash" style="border-color:var(--ref)"></i>pedida por el campo</span>
+          <span><i class="dash" style="border-color:var(--critical)"></i>límite</span>
+        </div>
+      </div>
+      <div class="cv" id="cv-f"><canvas aria-label="Gráfica de la tensión del hilo medida y la pedida por el campo en los últimos 30 segundos"></canvas></div>
+    </section>
+  </div>
+
+  <p class="note">Simulación con un dedo virtual: la rigidez, el hilo y el espasmo son supuestos, no medidas de tu prototipo. El controlador sí reproduce el programa: celda a 10 Hz, MPU con filtro, túnel de ±BANDA que se angosta a ±1° al sostener, lazo de tensión <code>K_ADM = 3</code>, y fallas por tensión &gt; 10 N, subida brusca &gt; 40 N/s o hiperextensión. La fuerza sobre el dedo es ~2 a 2,5 veces la tensión del hilo.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+// ======================= PARÁMETROS (iguales al programa) =======================
+const P = {THETA_EXT:45, THETA_FLEX:80, VEL_REF:10, T_SOST:2, T_DESC:2,
+  BANDA:5, BANDA_META:1, K_CAMPO:0.8, T_MIN:0.5, F_MAX:6,
+  K_ADM:3, G_FF:0.5, V_MAX:30, V_SOLTAR:60, V_TENSAR:8,
+  T_DURO:10, DTDT_MAX:40, HIPEREXT:-10, S_EXT:140};
+const DT = 0.02;                       // control a 50 Hz
+const MM_POR_GRADO = 0.855;            // hilo por grado de servo (1:4, carrete Ø24.5)
+
+// ======================= PLANTA: dedo virtual + hilo =======================
+const plant = {th:80, s:0, T:0, rig:0.10, part:0, spasm:0};
+function noise(a){ return (Math.random()*2-1)*a; }
+function plantStep(dt){
+  const vmax = 300*dt;                                   // velocidad del servo
+  plant.s += Math.max(-vmax, Math.min(vmax, ctl.s_cmd - plant.s));
+  const taken = plant.s*MM_POR_GRADO;
+  const need = 4 + 0.545*(80 - plant.th);                // holgura + hilo que pide la extensión
+  plant.T = Math.max(0, 3.0*(taken - need));              // hilo: 3 N/mm
+  let tau = plant.rig*(80 - plant.th) - plant.T;
+  if (ctl.moving()) tau += plant.part*0.3*(ctl.ref - plant.th);   // el paciente ayuda a seguir la referencia
+  if (plant.spasm > 0){ tau += 8*Math.sin(Math.PI*Math.min(1, (1.6-plant.spasm)/1.6)); plant.spasm -= dt; }
+  plant.th += (tau/0.05)*dt;
+  plant.th = Math.max(-25, Math.min(95, plant.th));
+}
+
+// ======================= CONTROLADOR (port de ortesis_ffc.ino) =======================
+const ctl = {
+  fase:'TENSANDO', t_fase:0, s_cmd:0, T:0, Tprev:0, dTdt:0, hx:0,
+  ang:80, angPrev:80, dang:0, ref:80, Fdes:0, banda:P.BANDA,
+  plan:{ini:80,fin:45,t0:0,dur:1}, ciclo:0, angMin:999, Tmax:0,
+  lastExt:null, lastTmax:null, motivo:'', t_ok:0,
+  moving(){ return ['TENSANDO','EXTENSION','SOSTENER','FLEXION','DESCANSO'].includes(this.fase); }
+};
+let simT = 0;
+function cambiar(f){ ctl.fase = f; ctl.t_fase = simT; }
+function minJerk(x){ x = Math.max(0, Math.min(1, x)); return x*x*x*(10 - 15*x + 6*x*x); }
+function planear(a, b){ ctl.plan = {ini:a, fin:b, t0:simT, dur:Math.max(0.5, Math.abs(b-a)/P.VEL_REF)}; ctl.ref = a; }
+function refAct(){ const x = (simT - ctl.plan.t0)/ctl.plan.dur; ctl.ref = ctl.plan.ini + (ctl.plan.fin - ctl.plan.ini)*minJerk(x); return x >= 1; }
+function campo(err, banda){ let f = P.T_MIN; if (err > banda) f += P.K_CAMPO*(err - banda); return Math.min(f, P.F_MAX); }
+function falla(m){ if (ctl.fase === 'FALLA') return; ctl.motivo = m; cambiar('FALLA'); }
+function empezarExt(){ ctl.angMin = ctl.ang; ctl.Tmax = 0; planear(ctl.ang, P.THETA_EXT); cambiar('EXTENSION'); }
+
+function controlStep(){
+  // celda HX711 a 10 Hz con filtro
+  ctl.hx += DT;
+  if (ctl.hx >= 0.1 - 1e-9){ ctl.hx = 0; const Tn = plant.T + noise(0.02); ctl.dTdt = (Tn - ctl.Tprev)/0.1; ctl.Tprev = Tn; ctl.T = 0.7*Tn + 0.3*ctl.T; }
+  // MPU con filtro
+  const m = plant.th + noise(0.25);
+  ctl.ang = 0.3*m + 0.7*ctl.ang;
+  ctl.dang = 0.2*((ctl.ang - ctl.angPrev)/DT) + 0.8*ctl.dang;
+  ctl.angPrev = ctl.ang;
+
+  if (ctl.moving()){
+    if (ctl.T > P.T_DURO) falla('Tensión sobre el límite de 10 N.');
+    else if (ctl.dTdt > P.DTDT_MAX && ctl.T > 2) falla('Subida brusca de tensión: posible espasmo.');
+    else if (ctl.ang < P.HIPEREXT) falla('Hiperextensión de la MCF.');
+  }
+  if (ctl.fase === 'EXTENSION' || ctl.fase === 'SOSTENER'){ ctl.angMin = Math.min(ctl.angMin, ctl.ang); ctl.Tmax = Math.max(ctl.Tmax, ctl.T); }
+
+  const tf = simT - ctl.t_fase;
+  ctl.banda = P.BANDA;
+  switch (ctl.fase){
+    case 'TENSANDO':
+      ctl.Fdes = P.T_MIN; ctl.ref = ctl.ang;
+      if (ctl.T < 0.8*P.T_MIN) ctl.t_ok = simT;
+      if (simT - ctl.t_ok > 0.3) empezarExt();
+      break;
+    case 'EXTENSION':
+      if (refAct()) cambiar('SOSTENER');
+      ctl.Fdes = campo(ctl.ang - ctl.ref, P.BANDA);
+      break;
+    case 'SOSTENER': {
+      ctl.ref = P.THETA_EXT;
+      const x = Math.min(1, tf/1.0);
+      ctl.banda = P.BANDA - (P.BANDA - P.BANDA_META)*x;
+      ctl.Fdes = campo(ctl.ang - ctl.ref, ctl.banda);
+      if (tf > P.T_SOST){ ctl.lastExt = ctl.angMin; ctl.lastTmax = ctl.Tmax; planear(P.THETA_EXT, P.THETA_FLEX); cambiar('FLEXION'); }
+      break; }
+    case 'FLEXION':
+      ctl.Fdes = campo(ctl.ang - ctl.ref, P.BANDA);
+      if (refAct()){ ctl.ciclo++; cambiar('DESCANSO'); }
+      break;
+    case 'DESCANSO':
+      ctl.ref = P.THETA_FLEX; ctl.Fdes = P.T_MIN;
+      if (tf > P.T_DESC) empezarExt();
+      break;
+    case 'SOLTANDO': case 'FALLA':
+      ctl.Fdes = 0; ctl.s_cmd -= P.V_SOLTAR*DT;
+      if (ctl.s_cmd <= 0){ ctl.s_cmd = 0; if (ctl.fase === 'SOLTANDO') cambiar('REPOSO'); }
+      break;
+    case 'REPOSO':
+      ctl.Fdes = 0; ctl.s_cmd = 0; ctl.ref = ctl.ang;
+      break;
+  }
+  if (ctl.moving()){
+    let v = P.K_ADM*(ctl.Fdes - ctl.T) - P.G_FF*ctl.dang;
+    if (ctl.fase === 'TENSANDO' && ctl.T < 0.5*P.T_MIN) v = P.V_TENSAR;
+    ctl.s_cmd += Math.max(-P.V_SOLTAR, Math.min(P.V_MAX, v))*DT;
+  }
+  ctl.s_cmd = Math.max(0, Math.min(P.S_EXT, ctl.s_cmd));
+}
+
+// ======================= REGISTRO PARA LAS GRÁFICAS =======================
+const datos = []; let tReg = 0;
+function registrar(){
+  const conTunel = ['EXTENSION','SOSTENER','FLEXION'].includes(ctl.fase);
+  datos.push({t:simT, ref:ctl.moving() ? ctl.ref : null, ang:ctl.ang, Fdes:ctl.Fdes, T:Math.max(0, ctl.T),
+    lo: conTunel ? ctl.ref - ctl.banda : null, hi: conTunel ? ctl.ref + ctl.banda : null});
+  while (datos.length && datos[0].t < simT - 32) datos.shift();
+}
+
+// ======================= ESCENA 3D =======================
+const viewer = document.getElementById('viewer');
+let three = null;
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function construir(){
+  if (!window.THREE) throw new Error('sin three');
+  const T3 = THREE;
+  const renderer = new T3.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T3.PCFSoftShadowMap;
+  viewer.prepend(renderer.domElement);
+  renderer.domElement.setAttribute('aria-label', 'Vista 3D de la órtesis moviendo el dedo');
+
+  const scene = new T3.Scene();
+  const camera = new T3.PerspectiveCamera(32, 1, 0.5, 400);
+  camera.position.set(27, 17, 33);
+  const controls = new T3.OrbitControls(camera, renderer.domElement);
+  controls.target.set(-7, -0.5, 0);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.minDistance = 16; controls.maxDistance = 95;
+  controls.maxPolarAngle = Math.PI*0.47;
+
+  // luz de estudio: cielo suave, luz principal con sombra, relleno y contraluz
+  scene.add(new T3.HemisphereLight(0xfff7e6, 0x6f1f3b, 0.68));
+  const clave = new T3.DirectionalLight(0xfff6ea, 0.95);
+  clave.position.set(16, 30, 20); clave.castShadow = true;
+  clave.shadow.mapSize.set(2048, 2048); clave.shadow.bias = -0.0004; clave.shadow.normalBias = 0.02;
+  Object.assign(clave.shadow.camera, {left:-34, right:34, top:26, bottom:-26, near:1, far:110});
+  scene.add(clave);
+  const relleno = new T3.DirectionalLight(0xe8f0ff, 0.32); relleno.position.set(-24, 12, 18); scene.add(relleno);
+  const contra = new T3.DirectionalLight(0xffc7da, 0.5); contra.position.set(-10, 16, -30); scene.add(contra);
+
+  const M = (c, r, mt=0) => new T3.MeshStandardMaterial({color:c, roughness:r, metalness:mt});
+  const mat = {guante:M(0xf5f3ef, 0.97), pla:M(0xf3c414, 0.38), naranja:M(0xff7d26, 0.36),
+    negro:M(0x202327, 0.42), negroMate:M(0x2a2d31, 0.8), madera:M(0xd3ad7b, 0.68), mpu:M(0x2c63c7, 0.42),
+    chip:M(0x111316, 0.5), velcro:M(0x1a1b1e, 1.0), metal:M(0xc4cad1, 0.3, 0.7), soporte:M(0xf3c414, 0.42)};
+  const sombra = o => { o.castShadow = true; o.receiveShadow = true; return o; };
+
+  // caja de bordes redondeados (normales analíticas: sin aristas marcadas)
+  function cajaRedonda(w, h, d, r, s = 6){
+    r = Math.min(r, w/2 - 1e-3, h/2 - 1e-3, d/2 - 1e-3);
+    const g = new T3.BoxGeometry(w, h, d, s, s, s);
+    const p = g.attributes.position, n = g.attributes.normal;
+    const hw = w/2 - r, hh = h/2 - r, hd = d/2 - r, v = new T3.Vector3(), c = new T3.Vector3();
+    for (let i = 0; i < p.count; i++){
+      v.fromBufferAttribute(p, i);
+      c.set(Math.max(-hw, Math.min(hw, v.x)), Math.max(-hh, Math.min(hh, v.y)), Math.max(-hd, Math.min(hd, v.z)));
+      v.sub(c).normalize();
+      n.setXYZ(i, v.x, v.y, v.z);
+      v.multiplyScalar(r).add(c);
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    return g;
+  }
+  const caja = (w, h, d, r, m) => sombra(new T3.Mesh(cajaRedonda(w, h, d, r), m));
+
+  // cápsula afinada a lo largo de +x, desde el origen hasta L (para falanges)
+  function capsula(r0, r1, L, rad = 28){
+    const pts = [];
+    for (let i = 0; i <= 8; i++){ const a = -Math.PI/2 + (i/8)*(Math.PI/2); pts.push(new T3.Vector2(r0*Math.cos(a), r0*Math.sin(a))); }
+    for (let i = 0; i <= 8; i++){ const a = (i/8)*(Math.PI/2); pts.push(new T3.Vector2(Math.max(1e-3, r1*Math.cos(a)), L + r1*Math.sin(a))); }
+    const g = new T3.LatheGeometry(pts, rad);
+    g.rotateZ(-Math.PI/2);
+    return g;
+  }
+  const cap = (r0, r1, L, m) => sombra(new T3.Mesh(capsula(r0, r1, L), m));
+  // pieza de revolución alrededor de z (poleas, carrete)
+  function polea(perfil, m, rad = 40){
+    const g = new T3.LatheGeometry(perfil.map(([r, y]) => new T3.Vector2(r, y)), rad);
+    g.rotateX(Math.PI/2);
+    return sombra(new T3.Mesh(g, m));
+  }
+  // anillo en C alrededor del eje x, abierto hacia la palma
+  function arcoX(R, tubo, arco, centro, m, ancho){
+    const g = new T3.TorusGeometry(R, tubo, 12, 48, arco);
+    g.rotateZ(centro - arco/2);
+    g.rotateY(Math.PI/2);
+    const mesh = sombra(new T3.Mesh(g, m));
+    mesh.scale.x = ancho;
+    return mesh;
+  }
+
+  // piso que se funde con el fondo
+  const piso = new T3.Mesh(new T3.CircleGeometry(90, 64), new T3.MeshStandardMaterial({color:0xdde2e6, roughness:1}));
+  piso.rotation.x = -Math.PI/2; piso.position.y = -8.6; piso.receiveShadow = true; scene.add(piso);
+
+  const mano = new T3.Group(); scene.add(mano);
+
+  // ---------- antebrazo, muñeca y palma ----------
+  const ant = cap(2.55, 2.75, 21, mat.madera); ant.position.set(-33.5, -0.35, 0); ant.scale.set(1, 0.86, 1.2); mano.add(ant);
+  const mun = cap(2.45, 2.6, 4.2, mat.guante); mun.position.set(-13.2, -0.2, 0); mun.scale.set(1, 0.78, 1.32); mano.add(mun);
+
+  const gp = cajaRedonda(9.4, 2.7, 8.5, 1.25, 8);
+  { // la palma se afina hacia la muñeca y se arquea un poco en el dorso
+    const p = gp.attributes.position;
+    for (let i = 0; i < p.count; i++){
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const t = (x + 4.7)/9.4;
+      const zz = z*(0.86 + 0.14*t);
+      const yy = y + (y > 0 ? 0.28*(1 - Math.pow(zz/4.25, 2)) : 0);
+      p.setXYZ(i, x, yy, zz);
+    }
+    gp.computeBoundingSphere();
+  }
+  const palma = sombra(new T3.Mesh(gp, mat.guante)); palma.position.set(-4.3, -0.05, 0.05); mano.add(palma);
+  // eminencia tenar (base del pulgar)
+  const tenar = sombra(new T3.Mesh(new T3.SphereGeometry(1, 32, 20), mat.guante));
+  tenar.scale.set(3.6, 1.35, 1.9); tenar.position.set(-6.4, -0.75, 3.1); mano.add(tenar);
+
+  // ---------- pulgar ----------
+  const pulgar = new T3.Group(); pulgar.position.set(-6.2, -0.75, 3.9); pulgar.rotation.set(0.35, -0.62, -0.22); mano.add(pulgar);
+  const pm = cap(1.05, 0.98, 3.0, mat.guante); pulgar.add(pm);
+  const pf = new T3.Group(); pf.position.x = 3.0; pf.rotation.z = -0.18; pulgar.add(pf);
+  pf.add(cap(0.98, 0.9, 2.6, mat.guante));
+  const pd = new T3.Group(); pd.position.x = 2.6; pd.rotation.z = -0.22; pf.add(pd);
+  pd.add(cap(0.9, 0.78, 2.0, mat.guante));
+
+  // ---------- dedos ----------
+  // [z, x de la MCF, y, giro lateral, largos, radios]
+  const defs = {
+    indice:  [ 3.0,  0.55, 0.15,  0.05, [4.1, 2.5, 1.9], [0.86, 0.78, 0.7], true ],
+    medio:   [ 0.98, 0.85, 0.2,   0.0,  [4.5, 2.9, 2.0], [0.88, 0.8, 0.72], false],
+    anular:  [-1.02, 0.55, 0.12, -0.04, [4.2, 2.7, 1.9], [0.84, 0.76, 0.68], true ],
+    menique: [-2.92,-0.25, -0.05,-0.1,  [3.3, 2.1, 1.8], [0.74, 0.68, 0.62], false]
+  };
+  const dedos = {};
+  for (const [nombre, [z, x0, y0, giro, L, R, activo]] of Object.entries(defs)){
+    const raiz = new T3.Group(); raiz.position.set(x0, y0, z); raiz.rotation.y = giro; mano.add(raiz);
+    const art = []; let padre = raiz;
+    for (let i = 0; i < 3; i++){
+      const piv = new T3.Group(); piv.position.x = i ? L[i-1] : 0; padre.add(piv);
+      const rFin = i < 2 ? R[i+1] : R[2]*0.82;
+      const seg = cap(R[i], rFin, L[i], mat.guante); seg.scale.set(1, 0.93, 1); piv.add(seg);
+      art.push(piv); padre = piv;
+    }
+    // anillos: banda amarilla en C, cierre de velcro por la palma y bloque superior
+    const guias = {};
+    [[0, 0.52], [1, 0.48]].forEach(([k, f]) => {
+      const rr = R[k] + 0.17, x = L[k]*f;
+      const banda = arcoX(rr, 0.16, Math.PI*1.25, Math.PI/2, mat.pla, 2.1); banda.position.x = x; art[k].add(banda);
+      const vel = arcoX(rr - 0.02, 0.1, Math.PI*0.75, -Math.PI/2, mat.velcro, 2.4); vel.position.x = x; art[k].add(vel);
+      const top = caja(1.25, 0.42, 1.15, 0.16, mat.pla); top.position.set(x, rr + 0.3, 0); art[k].add(top);
+      const g = new T3.Object3D(); g.position.set(x, rr + 0.62, 0); art[k].add(g);
+      if (activo && k === 1){
+        const pol = polea([[0.001, -0.15], [0.42, -0.15], [0.42, -0.08], [0.3, -0.02], [0.3, 0.02], [0.42, 0.08], [0.42, 0.15], [0.001, 0.15]], mat.naranja, 32);
+        pol.rotation.x = Math.PI/2; pol.position.set(x, rr + 0.66, 0); art[k].add(pol);
+        g.position.set(x + 0.3, rr + 0.66, 0);
+      }
+      guias[k] = g;
+    });
+    dedos[nombre] = {art, guias, activo};
+  }
+
+  // ---------- placa dorsal, servo, engranaje y carrete ----------
+  const placa = caja(10.6, 0.36, 8.7, 0.16, mat.pla); placa.position.set(-4.9, 1.72, 0.05); mano.add(placa);
+  const labio = caja(0.55, 0.7, 8.7, 0.2, mat.pla); labio.position.set(0.15, 1.86, 0.05); mano.add(labio);
+  const sop = caja(4.7, 1.35, 4.5, 0.3, mat.soporte); sop.position.set(-6.8, 2.5, -0.6); mano.add(sop);
+  const servo = caja(4.1, 3.9, 2.0, 0.22, mat.negro); servo.position.set(-6.8, 5.1, -0.6); mano.add(servo);
+  const orejas = caja(5.4, 0.22, 2.0, 0.08, mat.negro); orejas.position.set(-6.8, 5.6, -0.6); mano.add(orejas);
+  const etiqueta = caja(2.4, 1.0, 0.04, 0.02, mat.negroMate); etiqueta.position.set(-7.2, 4.6, 0.42); mano.add(etiqueta);
+
+  const engr = new T3.Group(); engr.position.set(-5.2, 5.6, 0.62); mano.add(engr);
+  { // engranaje de 40 dientes extruido, con agujeros de aligeramiento
+    const s = new T3.Shape(), nD = 40, rb = 1.5, ra = 1.66;
+    for (let i = 0; i < nD*4; i++){
+      const a = i/(nD*4)*Math.PI*2, r = (i % 4 === 1 || i % 4 === 2) ? ra : rb;
+      if (i === 0) s.moveTo(r*Math.cos(a), r*Math.sin(a)); else s.lineTo(r*Math.cos(a), r*Math.sin(a));
+    }
+    s.closePath();
+    for (let k = 0; k < 4; k++){ const a = k*Math.PI/2 + Math.PI/4, h = new T3.Path(); h.absarc(0.85*Math.cos(a), 0.85*Math.sin(a), 0.3, 0, Math.PI*2, true); s.holes.push(h); }
+    const eje = new T3.Path(); eje.absarc(0, 0, 0.22, 0, Math.PI*2, true); s.holes.push(eje);
+    const g = new T3.ExtrudeGeometry(s, {depth:0.22, bevelEnabled:true, bevelThickness:0.03, bevelSize:0.03, bevelSegments:2, curveSegments:24});
+    g.translate(0, 0, -0.11);
+    engr.add(sombra(new T3.Mesh(g, mat.negro)));
+  }
+  const carrete = new T3.Group(); carrete.position.set(-3.0, 5.6, 1.15); mano.add(carrete);
+  carrete.add(polea([[0.12, -0.42], [1.45, -0.42], [1.45, -0.3], [1.24, -0.22], [1.24, 0.22], [1.45, 0.3], [1.45, 0.42], [0.12, 0.42]], mat.naranja, 48));
+  const enrollado = new T3.Mesh(new T3.CylinderGeometry(1.3, 1.3, 0.36, 48, 1, true), new T3.MeshStandardMaterial({color:0xe2600d, roughness:0.6}));
+  enrollado.rotation.x = Math.PI/2; carrete.add(enrollado);
+  const marca = caja(0.18, 0.75, 0.04, 0.02, mat.negro); marca.position.set(0, 0.85, 0.44); carrete.add(marca);
+  const pinon = polea([[0.08, -0.18], [0.5, -0.18], [0.5, 0.18], [0.08, 0.18]], mat.naranja, 20); pinon.position.z = -0.6; carrete.add(pinon);
+  const torre = caja(0.5, 3.8, 0.45, 0.12, mat.soporte); torre.position.set(-3.0, 3.75, 1.85); mano.add(torre);
+  const tornillo = polea([[0.01, -0.06], [0.22, -0.06], [0.22, 0.06], [0.01, 0.06]], mat.metal, 16); tornillo.position.set(-3.0, 5.6, 1.62); mano.add(tornillo);
+
+  // poleas de reenvío en el borde de la placa
+  const reenvios = {};
+  for (const n of ['indice', 'anular']){
+    const z = defs[n][0];
+    const pol = polea([[0.05, -0.2], [0.5, -0.2], [0.5, -0.12], [0.36, -0.04], [0.36, 0.04], [0.5, 0.12], [0.5, 0.2], [0.05, 0.2]], mat.naranja, 32);
+    pol.position.set(-0.45, 2.5, z); mano.add(pol);
+    const pata = caja(0.5, 0.75, 0.3, 0.1, mat.pla); pata.position.set(-0.45, 2.1, z - 0.32); mano.add(pata);
+    reenvios[n] = new T3.Vector3(-0.45, 2.95, z);
+  }
+
+  // MPU: uno sobre la placa y otro de canto en F1 del índice
+  const mpuMano = caja(1.6, 0.16, 2.0, 0.05, mat.mpu); mpuMano.position.set(-2.3, 1.98, -2.55); mano.add(mpuMano);
+  const chip1 = caja(0.45, 0.08, 0.45, 0.02, mat.chip); chip1.position.set(-2.3, 2.08, -2.55); mano.add(chip1);
+  const mpuDedo = caja(1.5, 1.05, 0.14, 0.05, mat.mpu); mpuDedo.position.set(defs.indice[4][0]*0.3, 0.05, defs.indice[5][0] + 0.25); dedos.indice.art[0].add(mpuDedo);
+  const chip2 = caja(0.42, 0.42, 0.06, 0.02, mat.chip); chip2.position.set(defs.indice[4][0]*0.3, 0.05, defs.indice[5][0] + 0.33); dedos.indice.art[0].add(chip2);
+
+  // ---------- férula del antebrazo ----------
+  { // canal de pared gruesa extruido a lo largo del antebrazo
+    const s = new T3.Shape(), Ro = 3.95, Ri = 3.55;
+    s.absarc(0, 0, Ro, Math.PI*1.02, Math.PI*1.98, false);
+    s.absarc(0, 0, Ri, Math.PI*1.98, Math.PI*1.02, true);
+    const g = new T3.ExtrudeGeometry(s, {depth:15, bevelEnabled:true, bevelThickness:0.12, bevelSize:0.12, bevelSegments:3, curveSegments:48});
+    g.rotateY(Math.PI/2);
+    const canal = sombra(new T3.Mesh(g, mat.pla)); canal.position.set(-30.5, -0.35, 0); canal.scale.set(1, 0.86, 1.2); mano.add(canal);
+  }
+  for (const x of [-19.2, -26.8]){
+    const c = new T3.Mesh(new T3.TorusGeometry(3.3, 0.2, 10, 64), mat.velcro);
+    c.geometry.rotateY(Math.PI/2); c.scale.set(3.2, 0.86, 1.22); c.position.set(x, -0.35, 0); sombra(c); mano.add(c);
+    const hebilla = caja(0.9, 0.5, 0.25, 0.08, mat.negroMate); hebilla.position.set(x, 1.0, 3.9); mano.add(hebilla);
+  }
+  const base = caja(15.6, 0.55, 10.6, 0.22, mat.pla); base.position.set(-23, -4.25, 0); mano.add(base);
+  for (const z of [5.05, -5.05]){ const p = caja(15, 3.3, 0.5, 0.2, mat.pla); p.position.set(-23, -2.6, z); mano.add(p); }
+  for (const [x, z] of [[-16.2, 5.7], [-29.8, 5.7], [-16.2, -5.7], [-29.8, -5.7]]){ const t = caja(1.7, 0.32, 1.5, 0.12, mat.naranja); t.position.set(x, -4.05, z); mano.add(t); }
+  for (const x of [-17.5, -28.5]){ const pata = caja(2.6, 4.1, 8.2, 0.3, mat.soporte); pata.position.set(x, -6.55, 0); mano.add(pata); }
+
+  // ---------- hilos ----------
+  const hiloMat = new T3.MeshStandardMaterial({color:0xff6b0a, roughness:0.45, emissive:0x3a1300});
+  const unidad = new T3.CylinderGeometry(0.045, 0.045, 1, 8);
+  const tramo = () => { const m = new T3.Mesh(unidad, hiloMat); m.castShadow = true; mano.add(m); return m; };
+  const hilos = {indice:[tramo(), tramo(), tramo()], anular:[tramo(), tramo(), tramo()]};
+  const Y = new T3.Vector3(0, 1, 0), tmpA = new T3.Vector3(), tmpB = new T3.Vector3(), dir = new T3.Vector3();
+  function colocar(m, a, b){
+    dir.subVectors(b, a); const l = dir.length();
+    m.position.copy(a).addScaledVector(dir, 0.5);
+    m.quaternion.setFromUnitVectors(Y, dir.normalize()); m.scale.set(1, l, 1);
+  }
+
+  function resize(){
+    const w = viewer.clientWidth, h = viewer.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(viewer); resize();
+  function fondo(){
+    const c = new T3.Color(css('--scene') || '#e6eaed');
+    scene.background = c;
+    scene.fog = new T3.Fog(c, 70, 150);
+    const hsl = {}; c.getHSL(hsl);
+    piso.material.color.setHSL(hsl.h, hsl.s, Math.max(0, hsl.l - (hsl.l > 0.5 ? 0.035 : -0.03)));
+  }
+  fondo();
+
+  return {
+    actualizar(){
+      const th = plant.th*Math.PI/180;
+      for (const d of Object.values(dedos)){
+        const a = Math.max(-0.4, th + (d.activo ? 0 : 0.06));      // los pasivos siguen con un poco de retraso
+        d.art[0].rotation.z = -a; d.art[1].rotation.z = -a*0.95; d.art[2].rotation.z = -a*0.55;
+      }
+      engr.rotation.z = -plant.s*Math.PI/180;
+      carrete.rotation.z = plant.s*4*Math.PI/180;
+      mano.updateMatrixWorld(true);
+      for (const n of ['indice', 'anular']){
+        const d = dedos[n], h = hilos[n];
+        const sal = new T3.Vector3(-3.0, 6.88, 1.15 + (n === 'indice' ? 0.12 : -0.12));
+        const g1 = d.guias[0].getWorldPosition(tmpA).clone(), g2 = d.guias[1].getWorldPosition(tmpB).clone();
+        colocar(h[0], sal, reenvios[n]); colocar(h[1], reenvios[n], g1); colocar(h[2], g1, g2);
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    },
+    fondo
+  };
+}
+
+try { three = construir(); } catch (e) { document.getElementById('fallback').hidden = false; }
+
+// ======================= GRÁFICAS =======================
+function grafica(id, cfg){
+  const cont = document.getElementById(id), cv = cont.querySelector('canvas'), ctx = cv.getContext('2d');
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; cont.appendChild(tip);
+  let hoverX = null;
+  cv.addEventListener('pointermove', e => { const r = cv.getBoundingClientRect(); hoverX = e.clientX - r.left; });
+  cv.addEventListener('pointerleave', () => { hoverX = null; tip.hidden = true; });
+  const pad = {l:40, r:76, t:10, b:24};
+  return function dibujar(){
+    const dpr = Math.min(2, window.devicePixelRatio || 1), W = cont.clientWidth, H = cont.clientHeight;
+    if (cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)){ cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const c = {grid:css('--grid'), ink:css('--ink'), ink2:css('--ink-2'), ref:css('--ref'), tunnel:css('--tunnel'), crit:css('--critical'), surf:css('--surface')};
+    const t1 = Math.max(30, simT), t0 = t1 - 30;
+    const X = t => pad.l + (t - t0)/30*(W - pad.l - pad.r);
+    const Yv = v => pad.t + (1 - (v - cfg.min)/(cfg.max - cfg.min))*(H - pad.t - pad.b);
+    ctx.font = '12.5px "Times New Roman", Times, serif'; ctx.textBaseline = 'middle';
+    // rejilla y eje y
+    for (const v of cfg.ticks){ ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.l, Yv(v)); ctx.lineTo(W - pad.r, Yv(v)); ctx.stroke();
+      ctx.fillStyle = c.ink2; ctx.textAlign = 'right'; ctx.fillText(v + cfg.unidad, pad.l - 6, Yv(v)); }
+    // eje x (segundos)
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const paso = W < 520 ? 10 : 5;
+    for (let s = Math.ceil(t0/paso)*paso; s <= t1; s += paso){ ctx.fillStyle = c.ink2; ctx.fillText(s + ' s', X(s), H - pad.b + 6); }
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, W - pad.l - pad.r, H - pad.t - pad.b); ctx.clip();
+    // túnel
+    if (cfg.tunel){
+      ctx.fillStyle = c.tunnel; let abierto = false; let seg = [];
+      const cerrar = () => { if (seg.length > 1){ ctx.beginPath(); seg.forEach((d,i) => i ? ctx.lineTo(X(d.t), Yv(d.hi)) : ctx.moveTo(X(d.t), Yv(d.hi))); for (let i = seg.length-1; i >= 0; i--) ctx.lineTo(X(seg[i].t), Yv(seg[i].lo)); ctx.closePath(); ctx.fill(); } seg = []; };
+      for (const d of datos){ if (d.lo === null){ cerrar(); } else seg.push(d); }
+      cerrar();
+    }
+    // líneas de referencia fijas
+    for (const r of cfg.lineas || []){ ctx.strokeStyle = c[r.color]; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(pad.l, Yv(r.v)); ctx.lineTo(W - pad.r, Yv(r.v)); ctx.stroke(); ctx.setLineDash([]); }
+    // series
+    for (const s of cfg.series){
+      ctx.strokeStyle = s.color === 'ref' ? c.ref : css(s.color); ctx.lineWidth = s.ancho; ctx.setLineDash(s.dash ? [6, 4] : []); ctx.lineJoin = 'round';
+      ctx.beginPath(); let on = false;
+      for (const d of datos){ const v = d[s.k]; if (v === null){ on = false; continue; } const x = X(d.t), y = Yv(v); if (on) ctx.lineTo(x, y); else { ctx.moveTo(x, y); on = true; } }
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.restore();
+    // etiquetas directas al final de cada serie y de las líneas fijas
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '12.5px "Times New Roman", Times, serif';
+    const ult = datos[datos.length - 1];
+    const usados = [];
+    const etiqueta = (y, txt, col) => { let yy = y; for (const u of usados) if (Math.abs(u - yy) < 12) yy = u + 12*(yy >= u ? 1 : -1); usados.push(yy);
+      ctx.fillStyle = col; ctx.fillRect(W - pad.r + 6, yy - 1, 8, 2); ctx.fillStyle = c.ink2; ctx.fillText(txt, W - pad.r + 18, yy); };
+    if (ult) for (const s of cfg.series){ const v = ult[s.k]; if (v !== null && v !== undefined) etiqueta(Math.max(pad.t + 4, Math.min(H - pad.b - 4, Yv(v))), s.etq, s.color === 'ref' ? c.ref : css(s.color)); }
+    for (const r of cfg.lineas || []) etiqueta(Yv(r.v), r.etq, c[r.color]);
+    // cruz y tooltip
+    if (hoverX !== null && hoverX >= pad.l && hoverX <= W - pad.r && datos.length){
+      const t = t0 + (hoverX - pad.l)/(W - pad.l - pad.r)*30;
+      let best = datos[0]; for (const d of datos) if (Math.abs(d.t - t) < Math.abs(best.t - t)) best = d;
+      const x = X(best.t); ctx.strokeStyle = c.ink2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, H - pad.b); ctx.stroke();
+      let html = '<div>' + best.t.toFixed(1) + ' s</div>';
+      for (const s of cfg.series){ const v = best[s.k]; if (v === null) continue; const col = s.color === 'ref' ? c.ref : css(s.color);
+        ctx.fillStyle = col; ctx.strokeStyle = c.surf; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, Yv(v), 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        html += '<div><i style="background:' + col + '"></i>' + s.etq + ': ' + v.toFixed(cfg.dec) + cfg.unidad + '</div>'; }
+      tip.innerHTML = html; tip.hidden = false;
+      const tw = tip.offsetWidth; tip.style.left = (x + 12 + tw > W ? x - tw - 12 : x + 12) + 'px'; tip.style.top = pad.t + 'px';
+    }
+  };
+}
+const gAng = grafica('cv-ang', {min:-10, max:95, ticks:[0, 20, 45, 60, 80], unidad:'°', dec:1, tunel:true,
+  series:[{k:'ref', color:'ref', dash:true, ancho:1.6, etq:'referencia'}, {k:'ang', color:'--series-ang', ancho:2, etq:'MCF'}]});
+const gF = grafica('cv-f', {min:0, max:12, ticks:[0, 2, 4, 6, 8, 10, 12], unidad:' N', dec:2,
+  lineas:[{v:P.T_DURO, color:'crit', etq:'límite 10 N'}],
+  series:[{k:'Fdes', color:'ref', dash:true, ancho:1.6, etq:'pedida'}, {k:'T', color:'--series-t', ancho:2, etq:'tensión'}]});
+
+// ======================= PANEL =======================
+const $ = id => document.getElementById(id);
+let corriendo = true, vel = 1;
+const nombres = {TENSANDO:'Tensando el hilo', EXTENSION:'Extensión', SOSTENER:'Sosteniendo en 45°', FLEXION:'Flexión', DESCANSO:'Descanso', SOLTANDO:'Soltando', REPOSO:'En reposo', FALLA:'Falla'};
+function panel(){
+  const k = ctl.fase === 'FALLA' ? 'falla' : (!corriendo ? 'pausa' : (ctl.moving() ? 'activo' : 'reposo'));
+  $('chip').dataset.k = k;
+  $('fase').textContent = !corriendo && ctl.fase !== 'FALLA' ? 'En pausa · ' + nombres[ctl.fase] : nombres[ctl.fase];
+  $('motivo').hidden = ctl.fase !== 'FALLA'; $('motivo').textContent = ctl.motivo + ' El servo soltó el hilo. Pulsa Reiniciar.';
+  $('ciclo').textContent = 'ciclo ' + (ctl.ciclo + (ctl.moving() ? 1 : 0));
+  const u = (v, d, s) => v.toFixed(d) + '<small> ' + s + '</small>';
+  $('r-ang').innerHTML = u(ctl.ang, 1, '°');
+  $('r-ref').innerHTML = ctl.moving() ? u(ctl.ref, 1, '°') : '—';
+  $('r-t').innerHTML = u(Math.max(0, ctl.T), 2, 'N');
+  $('r-f').innerHTML = u(ctl.Fdes, 2, 'N');
+  $('r-s').innerHTML = u(ctl.s_cmd, 0, '°');
+  $('r-h').innerHTML = u(ctl.s_cmd*MM_POR_GRADO, 0, 'mm');
+  $('r-ext').innerHTML = ctl.lastExt === null ? '—' : u(ctl.lastExt, 1, '°');
+  $('r-tmax').innerHTML = ctl.lastTmax === null ? '—' : u(ctl.lastTmax, 2, 'N');
+  $('btn-play').textContent = corriendo ? 'Pausar' : 'Reanudar';
+  $('btn-reiniciar').disabled = !(ctl.fase === 'FALLA' || ctl.fase === 'REPOSO');
+  $('btn-reiniciar').textContent = ctl.fase === 'REPOSO' ? 'Iniciar ciclos' : 'Reiniciar';
+  $('btn-soltar').disabled = !ctl.moving();
+  $('btn-espasmo').disabled = !ctl.moving();
+}
+$('btn-play').onclick = () => { corriendo = !corriendo; panel(); };
+$('btn-soltar').onclick = () => { if (ctl.moving()){ cambiar('SOLTANDO'); panel(); } };
+$('btn-espasmo').onclick = () => { if (ctl.moving()) plant.spasm = 1.6; };
+$('btn-reiniciar').onclick = () => {
+  if (ctl.fase === 'FALLA' || ctl.fase === 'REPOSO'){ plant.spasm = 0; ctl.motivo = ''; ctl.s_cmd = 0; ctl.t_ok = simT; cambiar('TENSANDO'); corriendo = true; panel(); }
+};
+$('sel-vel').onchange = e => { vel = +e.target.value; };
+const sl = (id, out, fmt, set) => { const el = $(id); const f = () => { const v = +el.value; set(v); $(out).textContent = fmt(v); }; el.addEventListener('input', f); f(); };
+sl('sl-rig', 'o-rig', v => v.toFixed(2) + ' N/°', v => plant.rig = v);
+sl('sl-part', 'o-part', v => v + ' %', v => plant.part = v/100);
+sl('sl-k', 'o-k', v => v.toFixed(2) + ' N/°', v => P.K_CAMPO = v);
+sl('sl-banda', 'o-banda', v => '± ' + v + ' °', v => P.BANDA = v);
+sl('sl-fmax', 'o-fmax', v => v.toFixed(1) + ' N', v => P.F_MAX = v);
+
+// tema: el fondo de la escena sigue al del visor
+const alTema = () => { if (three) three.fondo(); };
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', alTema);
+new MutationObserver(alTema).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+// ======================= BUCLE =======================
+let ultimo = performance.now(), acum = 0, tPanel = 0;
+function cuadro(ahora){
+  const dt = Math.min(0.1, (ahora - ultimo)/1000); ultimo = ahora;
+  if (corriendo){
+    acum += dt*vel;
+    while (acum >= DT){
+      for (let i = 0; i < 20; i++) plantStep(0.001);
+      simT += DT; controlStep();
+      tReg += DT; if (tReg >= 0.05){ tReg = 0; registrar(); }
+      acum -= DT;
+    }
+  }
+  if (three) three.actualizar();
+  gAng(); gF();
+  tPanel += dt; if (tPanel > 0.1){ tPanel = 0; panel(); }
+  requestAnimationFrame(cuadro);
+}
+panel();
+requestAnimationFrame(cuadro);
+})();
+</script>
+
+</body>
+</html>
