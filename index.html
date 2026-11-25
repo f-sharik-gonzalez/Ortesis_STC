@@ -8,36 +8,41 @@
 <title>Simulación de la Órtesis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap">
 <style>
 /* Layout: banco de pruebas — visor 3D grande con panel de mando al lado; debajo, las dos gráficas en vivo */
+/* Paleta: vainilla de fondo, rosados oscuros para el texto y la escena, verde musgo para el ángulo y los controles */
 :root{
-  --bg:#eef1f3; --surface:#ffffff; --scene:#e6eaed; --ink:#1d2731; --ink-2:#5b6875; --rule:#cfd7de; --grid:#e7ecf0;
-  --series-ang:#257de0; --series-t:#f47230; --ref:#7d8893; --tunnel:#dbe7f6;
-  --good:#0aac23; --warn:#fbb315; --critical:#dc3c3d; --btn:#1d2731; --btn-ink:#ffffff; --pla:#e9b800;
-  --display:"Barlow Condensed","Arial Narrow",sans-serif;
-  --body:"Barlow","Segoe UI",system-ui,sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+  --bg:#FFF7E6;            /* vainilla: fondo de la interfaz */
+  --surface:#FFF0F5;       /* ivory bloom: tarjetas y panel */
+  --scene:#3A071F;         /* rose ink: fondo de la simulación */
+  --scene-ink:#FFF0F5; --scene-ink-2:#E2A6BA;
+  --ink:#3A071F;           /* texto principal */
+  --ink-2:#6F1F3B;         /* texto pequeño */
+  --rule:#EBC9D3; --grid:#F4DDE4;
+  --moss:#8D8D51;          /* botones, sliders y ángulo */
+  --jazz:#B60062;          /* fuerza y alertas */
+  --series-ang:var(--moss); --series-t:var(--jazz); --ref:#8E6B78; --tunnel:#E8E8D0;
+  --good:var(--moss); --warn:#E2A6BA; --critical:#620607;
+  --btn:var(--moss); --btn-ink:#3A071F; --pla:#e9b800;
+  --title:"Cinzel","Times New Roman",Times,serif;            /* título principal */
+  --display:"Playfair Display","Times New Roman",Times,serif; /* títulos de sección */
+  --serif:"Times New Roman",Times,serif;                     /* textos de lectura */
+  --body:"Times New Roman",Times,serif;                       /* resto de la interfaz */
+  --mono:"Times New Roman",Times,serif;                      /* datos, medidas y etiquetas pequeñas */
 }
-@media (prefers-color-scheme: light){:root:not([data-theme="light"]){
-  --bg:#FFF756; --surface:#171f27; --scene:#1b242d; --ink:#e7edf2; --ink-2:#9aa7b3; --rule:#2c3946; --grid:#22303c;
-  --series-ang:#338ced; --series-t:#e76624; --ref:#8a96a2; --tunnel:#1d3350;
-  --btn:#e7edf2; --btn-ink:#10161c; --pla:#f2c200; color-scheme:light}}
-:root[data-theme="light"]{
-  --bg:#FFF756; --surface:#171f27; --scene:#1b242d; --ink:#e7edf2; --ink-2:#9aa7b3; --rule:#2c3946; --grid:#22303c;
-  --series-ang:#338ced; --series-t:#e76624; --ref:#8a96a2; --tunnel:#1d3350;
-  --btn:#e7edf2; --btn-ink:#10161c; --pla:#f2c200; color-scheme:light}
 
-body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--body);
+body{background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--body);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:1240px;margin:0 auto;padding-block:24px 40px;display:grid;gap:18px}
-h1,h2{font-family:var(--display);margin:0;line-height:1.05;text-wrap:balance}
-h1{font-size:clamp(1.9rem,4.2vw,2.7rem);font-weight:700;letter-spacing:.01em}
-h2{font-size:1.15rem;font-weight:600;letter-spacing:.03em}
+h1,h2{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
+h1{font-family:var(--title);font-size:clamp(1.8rem,4vw,2.6rem);font-weight:700;letter-spacing:.04em}
+h2{font-size:1.2rem;font-weight:600;letter-spacing:.01em}
 p{margin:0}
-.eyebrow{font:500 11.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.eyebrow{font:500 12.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
 header{display:grid;gap:8px}
-header .lead{max-width:72ch;color:var(--ink-2)}
+header .lead{max-width:72ch;color:var(--ink-2);font-family:var(--serif);font-size:1.08rem;line-height:1.5}
 header .lead b{color:var(--ink);font-weight:600}
 .pla{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--pla);vertical-align:0}
 
@@ -46,55 +51,57 @@ header .lead b{color:var(--ink);font-weight:600}
 .viewer{position:relative;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--scene);min-height:440px}
 .viewer canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 @media (max-width:600px){.viewer{min-height:320px}}
-.hint{position:absolute;left:12px;bottom:10px;font:500 11.5px var(--mono);color:var(--ink-2);background:color-mix(in srgb,var(--scene) 80%,transparent);padding:3px 7px;border-radius:5px}
-.fallback{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--ink-2)}
+.hint{position:absolute;left:12px;bottom:10px;font:500 13px var(--mono);color:var(--scene-ink-2);background:color-mix(in srgb,var(--scene) 80%,transparent);padding:3px 7px;border-radius:5px}
+.fallback{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--scene-ink)}
 .fallback[hidden]{display:none}
 
 .panel{border:1px solid var(--rule);border-radius:10px;background:var(--surface);padding:14px 16px;display:grid;gap:14px;align-content:start;min-width:0}
 .state{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;border:1px solid var(--rule);font:600 13px var(--body);letter-spacing:.02em}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;border:1px solid var(--rule);font:600 15px var(--body);letter-spacing:.02em}
 .chip i{width:9px;height:9px;border-radius:50%;background:var(--ref)}
 .chip[data-k="activo"] i{background:var(--good)}
 .chip[data-k="pausa"] i{background:var(--warn)}
 .chip[data-k="falla"]{border-color:var(--critical);color:var(--critical)}
 .chip[data-k="falla"] i{background:var(--critical)}
-.cyc{font:500 12.5px var(--mono);color:var(--ink-2)}
+.cyc{font:500 14px var(--mono);color:var(--ink-2)}
 .motivo{font-size:.9rem;color:var(--critical)}
 .read{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
 .read div{display:grid;gap:1px;border-top:1px solid var(--rule);padding-top:6px}
-.read span{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
-.read b{font:500 1.15rem var(--mono);font-variant-numeric:tabular-nums}
-.read b small{font-size:.75rem;color:var(--ink-2);font-weight:400}
+.read span{font:500 11.5px var(--mono);letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;color:var(--ink-2)}
+.read b{font:600 1.3rem var(--mono);font-variant-numeric:tabular-nums}
+.read b small{font-size:.8rem;color:var(--ink-2);font-weight:400}
 .btns{display:flex;flex-wrap:wrap;gap:8px}
-button,select{font:600 13.5px var(--body);border-radius:7px;cursor:pointer}
+button,select{font:600 15px var(--serif);border-radius:7px;cursor:pointer}
 button{padding:7px 12px;border:1px solid var(--btn);background:var(--btn);color:var(--btn-ink)}
 button.sec{background:transparent;color:var(--ink);border-color:var(--rule)}
-button.danger{background:transparent;color:var(--critical);border-color:var(--critical)}
+button.danger{background:transparent;color:var(--jazz);border-color:var(--jazz)}
+button:not(:disabled):hover{filter:brightness(1.06)}
+button.sec:not(:disabled):hover{background:var(--grid)}
 button:disabled{opacity:.4;cursor:default}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--series-ang);outline-offset:2px}
 select{padding:6px 8px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
 .sliders{display:grid;gap:10px}
 .sl{display:grid;gap:2px}
-.sl label{display:flex;justify-content:space-between;gap:8px;font-size:.9rem}
-.sl label output{font:500 12.5px var(--mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.sl label{display:flex;justify-content:space-between;gap:8px;font-size:1rem}
+.sl label output{font:500 14px var(--mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
 .sl input{width:100%;accent-color:var(--series-ang)}
-.sl small{color:var(--ink-2);font-size:.8rem;line-height:1.3}
-.group-t{font:500 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.sl small{color:var(--ink-2);font-family:var(--serif);font-style:italic;font-size:.9rem;line-height:1.3}
+.group-t{font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
 
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:900px){.charts{grid-template-columns:minmax(0,1fr)}}
 .chart{border:1px solid var(--rule);border-radius:10px;background:var(--surface);padding:12px 14px 10px;display:grid;gap:8px;min-width:0}
 .chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--ink-2)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.95rem;color:var(--ink-2)}
 .legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
 .legend i.dash{border-top-style:dashed}
 .legend i.box{height:9px;border:0;border-radius:2px;background:var(--tunnel)}
 .cv{position:relative;height:230px}
 .cv canvas{position:absolute;inset:0;width:100%;height:100%}
-.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;font:500 12px var(--mono);color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.12);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;font:500 13.5px var(--mono);color:var(--ink);box-shadow:0 4px 14px rgba(58,7,31,.14);white-space:nowrap;font-variant-numeric:tabular-nums}
 .tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
-.note{font-size:.88rem;color:var(--ink-2);max-width:90ch}
-.note code{font-family:var(--mono);font-size:.85em}
+.note{font-family:var(--serif);font-size:.98rem;color:var(--ink-2);max-width:90ch}
+.note code{font-family:var(--mono);font-style:italic}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
 </style>
 </head>
@@ -337,14 +344,14 @@ function construir(){
   controls.maxPolarAngle = Math.PI*0.47;
 
   // luz de estudio: cielo suave, luz principal con sombra, relleno y contraluz
-  scene.add(new T3.HemisphereLight(0xffffff, 0xb9b2a6, 0.62));
+  scene.add(new T3.HemisphereLight(0xfff7e6, 0x6f1f3b, 0.68));
   const clave = new T3.DirectionalLight(0xfff6ea, 0.95);
   clave.position.set(16, 30, 20); clave.castShadow = true;
   clave.shadow.mapSize.set(2048, 2048); clave.shadow.bias = -0.0004; clave.shadow.normalBias = 0.02;
   Object.assign(clave.shadow.camera, {left:-34, right:34, top:26, bottom:-26, near:1, far:110});
   scene.add(clave);
   const relleno = new T3.DirectionalLight(0xe8f0ff, 0.32); relleno.position.set(-24, 12, 18); scene.add(relleno);
-  const contra = new T3.DirectionalLight(0xffffff, 0.42); contra.position.set(-10, 16, -30); scene.add(contra);
+  const contra = new T3.DirectionalLight(0xffc7da, 0.5); contra.position.set(-10, 16, -30); scene.add(contra);
 
   const M = (c, r, mt=0) => new T3.MeshStandardMaterial({color:c, roughness:r, metalness:mt});
   const mat = {guante:M(0xf5f3ef, 0.97), pla:M(0xf3c414, 0.38), naranja:M(0xff7d26, 0.36),
@@ -600,7 +607,7 @@ function grafica(id, cfg){
     const t1 = Math.max(30, simT), t0 = t1 - 30;
     const X = t => pad.l + (t - t0)/30*(W - pad.l - pad.r);
     const Yv = v => pad.t + (1 - (v - cfg.min)/(cfg.max - cfg.min))*(H - pad.t - pad.b);
-    ctx.font = '11px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+    ctx.font = '12.5px "Times New Roman", Times, serif'; ctx.textBaseline = 'middle';
     // rejilla y eje y
     for (const v of cfg.ticks){ ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.l, Yv(v)); ctx.lineTo(W - pad.r, Yv(v)); ctx.stroke();
       ctx.fillStyle = c.ink2; ctx.textAlign = 'right'; ctx.fillText(v + cfg.unidad, pad.l - 6, Yv(v)); }
@@ -627,7 +634,7 @@ function grafica(id, cfg){
     }
     ctx.restore();
     // etiquetas directas al final de cada serie y de las líneas fijas
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '11px "Barlow", sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '12.5px "Times New Roman", Times, serif';
     const ult = datos[datos.length - 1];
     const usados = [];
     const etiqueta = (y, txt, col) => { let yy = y; for (const u of usados) if (Math.abs(u - yy) < 12) yy = u + 12*(yy >= u ? 1 : -1); usados.push(yy);
