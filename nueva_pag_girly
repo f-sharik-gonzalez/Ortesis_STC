@@ -109,7 +109,7 @@ select{padding:6px 8px;border:1px solid var(--rule);background:var(--surface);co
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Tesis · órtesis de extensión de dedos · mano izquierda</span>
+    <span class="eyebrow">Tesis · órtesis de extensión de dedos · mano derecha</span>
     <h1>Simulador de la órtesis</h1>
     <p class="lead">Modelo 3D del prototipo (<span class="pla"></span> placa y anillos en PLA, servo en el dorso, hilos a índice y anular) movido por el código cargado al prototipo real <b>ortesis_ffc.ino</b>: extensión de la MCF hasta <b>45°</b>, sostener, flexión hasta <b>80°</b>, con control por campo de fuerza.</p>
   </header>
