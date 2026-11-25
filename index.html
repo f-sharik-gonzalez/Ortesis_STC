@@ -19,14 +19,14 @@
   --body:"Barlow","Segoe UI",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#10161c; --surface:#171f27; --scene:#1b242d; --ink:#e7edf2; --ink-2:#9aa7b3; --rule:#2c3946; --grid:#22303c;
+@media (prefers-color-scheme: light){:root:not([data-theme="light"]){
+  --bg:#FFF756; --surface:#171f27; --scene:#1b242d; --ink:#e7edf2; --ink-2:#9aa7b3; --rule:#2c3946; --grid:#22303c;
   --series-ang:#338ced; --series-t:#e76624; --ref:#8a96a2; --tunnel:#1d3350;
-  --btn:#e7edf2; --btn-ink:#10161c; --pla:#f2c200; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#10161c; --surface:#171f27; --scene:#1b242d; --ink:#e7edf2; --ink-2:#9aa7b3; --rule:#2c3946; --grid:#22303c;
+  --btn:#e7edf2; --btn-ink:#10161c; --pla:#f2c200; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#FFF756; --surface:#171f27; --scene:#1b242d; --ink:#e7edf2; --ink-2:#9aa7b3; --rule:#2c3946; --grid:#22303c;
   --series-ang:#338ced; --series-t:#e76624; --ref:#8a96a2; --tunnel:#1d3350;
-  --btn:#e7edf2; --btn-ink:#10161c; --pla:#f2c200; color-scheme:dark}
+  --btn:#e7edf2; --btn-ink:#10161c; --pla:#f2c200; color-scheme:light}
 
 body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--body);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
